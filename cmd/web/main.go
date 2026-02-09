@@ -13,6 +13,9 @@ func main() {
 	mux.HandleFunc("GET /snippet/create", snippetCreate)
 	mux.HandleFunc("GET /snippet/view/{id}", snippetView)
 	mux.HandleFunc("POST /snippet/create", snippetCreatePost)
+	
+	fileServer := http.FileServer(http.Dir("./ui/static"))
+	mux.Handle("GET /static/", http.StripPrefix("/static", fileServer))
 
 	log.Print("starting server on :4000")
 

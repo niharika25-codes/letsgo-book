@@ -23,7 +23,7 @@ func home(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	err = ts.ExecuteTemplate(w, "base", nil)
-	w.Write([]byte("Hello from Snippetbox"))
+	//w.Write([]byte("Hello from Snippetbox"))
 	if err != nil {
 		log.Print(err.Error())
 		http.Error(w, "Internal server Error", http.StatusInternalServerError)

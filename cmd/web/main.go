@@ -1,10 +1,18 @@
 package main
 
 import (
+	"database/sql"
 	"flag"
-	"log"
+	"log/slog"
 	"net/http"
+	"os"
+
+	_ "github.com/go-sql-driver/mysql"
 )
+
+type application struct {
+	logger *slog.Logger
+}
 
 type config struct {
 	addr string
@@ -16,22 +24,46 @@ var cfg config
 func main() {
 	flag.StringVar(&cfg.addr, "addr", ":4000", "HTTP network addresss")
 	flag.StringVar(&cfg.staticDir, "static-dir", "./ui/static", "Path ti static assets")
-	
+	dsn := flag.String("dsn", "web:pass@/snippetbox?parseTime=true", "MySQL data source name")
+	//dsn := flag.String("dsn", "web:pass@tcp(host.docker.internal:3306)/snippetbox?parseTime=true", "MySQL data source name")
+
 	flag.Parse()
-	// router or servemux
-	mux := http.NewServeMux()
 
-	fileServer := http.FileServer(http.Dir(cfg.staticDir))
-	mux.Handle("GET /static/", http.StripPrefix("/static", fileServer))
+	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
+		AddSource: true,
+	}))
 
-	mux.HandleFunc("GET /{$}", home)
-	mux.HandleFunc("GET /snippet/create", snippetCreate)
-	mux.HandleFunc("GET /snippet/view/{id}", snippetView)
-	mux.HandleFunc("POST /snippet/create", snippetCreatePost)
+	 db, err := openDB(*dsn)
+    if err != nil {
+        logger.Error(err.Error())
+        os.Exit(1)
+    }
 
-	log.Printf("starting server on %s", cfg.addr)
+	defer db.Close()
+
+	app := &application{
+		logger: logger,
+	}
+
+	logger.Info("starting server", "addr", cfg.addr)
 
 	// server
-	err := http.ListenAndServe(cfg.addr, mux)
-	log.Fatal(err)
+	err = http.ListenAndServe(cfg.addr, app.routes())
+	logger.Error(err.Error())
+	os.Exit(1)
+}
+
+func openDB(dsn string) (*sql.DB, error) {
+    db, err := sql.Open("mysql", dsn)
+    if err != nil {
+        return nil, err
+    }
+
+    err = db.Ping()
+    if err != nil {
+        db.Close()
+        return nil, err
+    }
+
+    return db, nil
 }

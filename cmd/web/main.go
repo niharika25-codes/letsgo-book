@@ -8,30 +8,21 @@ import (
 	"os"
 
 	_ "github.com/go-sql-driver/mysql"
+	"snippetbox.niharika.net/internal/models"
 )
 
 type application struct {
 	logger *slog.Logger
+	snippets *models.SnippetModel
 }
-
-type config struct {
-	addr string
-	staticDir string
-}
-
-var cfg config
 
 func main() {
-	flag.StringVar(&cfg.addr, "addr", ":4000", "HTTP network addresss")
-	flag.StringVar(&cfg.staticDir, "static-dir", "./ui/static", "Path ti static assets")
-	dsn := flag.String("dsn", "web:pass@/snippetbox?parseTime=true", "MySQL data source name")
-	//dsn := flag.String("dsn", "web:pass@tcp(host.docker.internal:3306)/snippetbox?parseTime=true", "MySQL data source name")
+ 	addr := flag.String("addr", ":4000", "HTTP network address")
+    dsn := flag.String("dsn", "web:pass@/snippetbox?parseTime=true", "MySQL data source name")
+    flag.Parse()
 
-	flag.Parse()
+    logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 
-	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
-		AddSource: true,
-	}))
 
 	 db, err := openDB(*dsn)
     if err != nil {
@@ -43,12 +34,13 @@ func main() {
 
 	app := &application{
 		logger: logger,
+		snippets: &models.SnippetModel{DB: db},
 	}
 
-	logger.Info("starting server", "addr", cfg.addr)
+	logger.Info("starting server", "addr", *addr)
 
 	// server
-	err = http.ListenAndServe(cfg.addr, app.routes())
+	err = http.ListenAndServe(*addr, app.routes())
 	logger.Error(err.Error())
 	os.Exit(1)
 }

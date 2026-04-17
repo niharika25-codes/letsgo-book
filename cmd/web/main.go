@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"html/template"
 
 	_ "github.com/go-sql-driver/mysql"
 	"snippetbox.niharika.net/internal/models"
@@ -14,6 +15,7 @@ import (
 type application struct {
 	logger *slog.Logger
 	snippets *models.SnippetModel
+	templateCache map[string]*template.Template
 }
 
 func main() {
@@ -29,12 +31,18 @@ func main() {
         logger.Error(err.Error())
         os.Exit(1)
     }
-
 	defer db.Close()
+
+	tempateCache, err := newTemplateCache()
+	if err != nil {
+		logger.Error(err.Error())
+		os.Exit(1)
+	}
 
 	app := &application{
 		logger: logger,
 		snippets: &models.SnippetModel{DB: db},
+		templateCache: tempateCache,
 	}
 
 	logger.Info("starting server", "addr", *addr)
